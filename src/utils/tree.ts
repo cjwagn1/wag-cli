@@ -1,8 +1,26 @@
 import fs from "fs";
 import path from "path";
+import {
+  EXTENDED_BLACKLISTED_DIRS,
+  EXTENDED_BLACKLISTED_FILES,
+} from "../constants/blacklist";
 
-const BLACKLISTED_DIRS = ["node_modules", ".git", "dist", "build"];
-const BLACKLISTED_FILES = ["package-lock.json", "yarn.lock"];
+function isDirBlacklisted(name: string): boolean {
+  const lowerName = name.toLowerCase();
+  return EXTENDED_BLACKLISTED_DIRS.some(
+    (d) => lowerName === d || lowerName.match(d)
+  );
+}
+
+function isFileBlacklisted(name: string): boolean {
+  const lowerName = name.toLowerCase();
+  return EXTENDED_BLACKLISTED_FILES.some((f) => {
+    if (f.startsWith("*.")) {
+      return lowerName.endsWith(f.slice(1));
+    }
+    return lowerName === f;
+  });
+}
 
 /**
  * Recursively generate an ASCII tree.
@@ -17,9 +35,8 @@ const BLACKLISTED_FILES = ["package-lock.json", "yarn.lock"];
  */
 export function buildDirectoryTree(dir: string, prefix = ""): string {
   const entries = fs.readdirSync(dir, { withFileTypes: true }).filter((e) => {
-    if (e.isDirectory())
-      return !BLACKLISTED_DIRS.includes(e.name.toLowerCase());
-    return !BLACKLISTED_FILES.includes(e.name.toLowerCase());
+    if (e.isDirectory()) return !isDirBlacklisted(e.name);
+    return !isFileBlacklisted(e.name);
   });
 
   // Sort directories first, then files
@@ -38,10 +55,8 @@ export function buildDirectoryTree(dir: string, prefix = ""): string {
 
     if (entry.isDirectory()) {
       result += itemLine + "\n";
-      // Recurse
       result += buildDirectoryTree(path.join(dir, entry.name), newPrefix);
     } else {
-      // It's a file
       result += itemLine + "\n";
     }
   });
